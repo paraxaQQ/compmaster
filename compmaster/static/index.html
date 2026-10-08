@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Split compilations into tagged albums and add them to Plex.">
+  <title>Compmaster</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__name">compmaster</span>
+      <span class="brand__context">local compilation workbench</span>
+    </div>
+    <div class="topbar__actions">
+      <span class="version" id="version">v0.1.0</span>
+      <button type="button" class="button--quiet" id="plex-open">Plex setup</button>
+    </div>
+  </header>
+
+  <main class="shell" id="app-shell">
+    <section class="intake" id="intake">
+      <div class="intake__copy">
+        <h1>Split it once. Keep the album.</h1>
+        <p class="lede">Compmaster reads the tracklist from the description or chapters, finds boundaries when neither exists, then writes the compilation as one tagged album.</p>
+      </div>
+      <form class="source-form" id="source-form" novalidate>
+        <div class="source-form__row">
+          <label for="source">
+            YouTube URL or local media path
+            <input id="source" name="source" type="text" required aria-required="true" aria-describedby="source-help" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
+          </label>
+          <button class="button--primary" id="analyze" type="submit">Analyze comp</button>
+        </div>
+        <div class="helper" id="source-help">Local paths are read by the Compmaster process. Nothing is uploaded.</div>
+        <div class="folder-setting">
+          <label for="source-download-root">Source download folder<input id="source-download-root" type="text" placeholder="D:\Downloads\Compmaster" autocomplete="off"></label>
+          <div class="helper" id="source-download-help">Leave blank to use Compmaster's private cache. Local files are read in place.</div>
+        </div>
+      </form>
+    </section>
+
+    <section class="status-panel" id="status" aria-live="polite" hidden>
+      <div class="status-panel__line">
+        <span class="status-dot" id="status-dot"></span>
+        <strong id="status-message">Waiting.</strong>
+      </div>
+      <p class="helper" id="status-detail"></p>
+    </section>
+
+    <section class="status-panel" id="skeleton" aria-label="Loading compilation" hidden>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </section>
+
+    <section class="workspace" id="workspace" hidden>
+      <div class="source-summary">
+        <img class="cover" id="cover" alt="Compilation artwork" width="640" height="360">
+        <div class="source-meta">
+          <h2 id="source-title">Compilation</h2>
+          <div class="source-meta__line">
+            <span id="segmentation">chapters</span>
+            <span id="duration">00:00</span>
+            <span id="track-count">0 tracks</span>
+          </div>
+          <p class="lede">Review the metadata before export. Titles are sourced from YouTube chapters or the video's description. If compmaster isn't able to derive the song name, then it will be left blank.</p>
+        </div>
+      </div>
+
+      <div class="audio-bench">
+        <div class="audio-bench__head">
+          <span>source monitor</span>
+          <span id="playhead">00:00</span>
+        </div>
+        <audio id="audio" controls preload="metadata"></audio>
+      </div>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <h2>Album identity</h2>
+            <p class="helper">Every included track receives these album tags.</p>
+          </div>
+        </div>
+        <div class="album-grid">
+          <label for="album-title">Album title<input id="album-title" type="text" required></label>
+          <label for="album-artist">Album artist<input id="album-artist" type="text" required></label>
+          <label for="album-year">Year<input id="album-year" type="text" inputmode="numeric" placeholder="2026"></label>
+        </div>
+      </section>
+
+      <section class="track-editor">
+        <div class="section-head">
+          <div>
+            <h2>Track boundaries</h2>
+            <p class="helper">Use the source monitor to verify cuts. Start and end times are editable; excluded rows are not written.</p>
+          </div>
+          <button type="button" id="split-here">Split at playhead</button>
+        </div>
+        <table class="track-table">
+          <thead>
+            <tr><th>Use</th><th>No.</th><th>Start</th><th>End</th><th>Artist</th><th>Title</th></tr>
+          </thead>
+          <tbody id="tracks"></tbody>
+        </table>
+      </section>
+    </section>
+  </main>
+
+  <aside class="sticky-actions" id="actions" hidden>
+    <label class="sticky-actions__path" for="output-root">Finished album folder<input id="output-root" type="text" placeholder="D:\Music\Compmaster" autocomplete="off"></label>
+    <div class="sticky-actions__buttons">
+      <button type="button" id="plex-import">Add to Plex</button>
+      <button type="button" class="button--primary" id="export">Export album</button>
+    </div>
+  </aside>
+
+  <footer class="footer">Local-first. Plex credentials stay in this browser tab and are never written to disk.</footer>
+
+  <dialog id="plex-dialog" aria-labelledby="plex-title">
+    <div class="dialog__head">
+      <div>
+        <h2 id="plex-title">Add albums to Plex</h2>
+        <p>Connect your Plex server and map the local music folder to the path Plex sees. Compmaster writes the album, then requests a partial library scan.</p>
+      </div>
+      <button type="button" class="button--quiet" id="plex-close">Close</button>
+    </div>
+    <form id="plex-form" method="dialog">
+      <div class="dialog__body">
+        <label for="plex-url">Plex server URL<input id="plex-url" type="url" placeholder="http://192.168.0.54:32400" required></label>
+        <label for="plex-token">Plex token<input id="plex-token" type="password" autocomplete="off" required></label>
+        <label for="plex-library">Music library name<input id="plex-library" type="text" value="Music" required></label>
+        <label for="music-root">Local music root<input id="music-root" type="text" placeholder="Z:\Music" required></label>
+        <label for="plex-music-root">Path visible to Plex<input id="plex-music-root" type="text" placeholder="/music" required></label>
+        <div class="plex-status" id="plex-status" aria-live="polite"></div>
+      </div>
+      <div class="dialog__actions">
+        <button type="button" id="plex-test">Test connection</button>
+        <button type="submit" class="button--primary" id="plex-confirm">Write album and scan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

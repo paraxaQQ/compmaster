@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=83"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compmaster"
+version = "0.1.0"
+description = "Split compilations into tagged albums and add them to Plex"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "plexapi>=4.17,<5",
+    "requests>=2.31,<3",
+    "uvicorn>=0.30,<1",
+    "yt-dlp",
+]
+
+[project.scripts]
+compmaster = "compmaster.server:main"
+
+[tool.setuptools]
+packages = ["compmaster"]
+
+[tool.setuptools.package-data]
+compmaster = ["static/*"]
